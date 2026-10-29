@@ -256,7 +256,12 @@ async function loadCurrentTabProduct() {
       liveMeta = await chrome.tabs.sendMessage(tab.id, { action: 'get_product_meta' });
     } catch (e) {}
 
-    await loadProductData(pidInfo.pid, false, liveMeta, pidInfo.allIds, pidInfo);
+    const clusterIds = Array.from(new Set([
+      ...(pidInfo.allIds || []),
+      ...(liveMeta?.allIds || [])
+    ]));
+
+    await loadProductData(pidInfo.pid, false, liveMeta, clusterIds, pidInfo);
   } catch (err) {
     showEmptyState();
   }

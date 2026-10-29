@@ -10,27 +10,51 @@
     let slug = null;
     let itmId = null;
     let variantPid = null;
+    const idSet = new Set();
 
     try {
       const parsedUrl = new URL(url);
       const slugMatch = parsedUrl.pathname.match(/^\/([^/]+)\/p\//);
       if (slugMatch && slugMatch[1] && slugMatch[1] !== 'p') {
         slug = slugMatch[1];
+        idSet.add(slug);
       }
 
       const itmMatch = parsedUrl.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
       if (itmMatch && itmMatch[1]) {
         itmId = itmMatch[1];
+        idSet.add(itmId);
       }
 
       variantPid = parsedUrl.searchParams.get('pid');
+      if (variantPid) {
+        idSet.add(variantPid);
+      }
     } catch (e) {}
 
-    // Canonical identifier: slug (stable across all colors & sizes) > itmId > variantPid
+    // Canonical identifier: slug > itmId > variantPid
     const canonicalPid = slug || itmId || variantPid;
     if (!canonicalPid) return null;
 
-    const allIds = Array.from(new Set([slug, itmId, variantPid].filter(Boolean)));
+    // Harvest all sibling variant & swatch links rendered directly on the page
+    try {
+      const swatchLinks = document.querySelectorAll('a[href*="/p/"], a[href*="pid="]');
+      for (const a of swatchLinks) {
+        const href = a.getAttribute('href');
+        if (!href) continue;
+        try {
+          const u = new URL(href, location.origin);
+          const p = u.searchParams.get('pid');
+          if (p) idSet.add(p);
+          const itm = u.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
+          if (itm && itm[1]) idSet.add(itm[1]);
+          const s = u.pathname.match(/^\/([^/]+)\/p\//);
+          if (s && s[1] && s[1] !== 'p') idSet.add(s[1]);
+        } catch (e) {}
+      }
+    } catch (e) {}
+
+    const allIds = Array.from(idSet);
 
     let title = "";
     const titleEl = document.querySelector('h1 span.VU-ZEz') || 

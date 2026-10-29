@@ -1,121 +1,66 @@
-# 🛡️ Community Watch - Shopper Review Overlay
+# Community Watch - Shopper Review Overlay
 
-An open-source Chrome Extension (Manifest V3) with a **native Side Panel** (styled like Chrome Gemini) that empowers online shoppers to anonymously share and view real community feedback on e-commerce product listings—including **undelivered packages, auto-cancelled orders, delivery issues, counterfeit/defective items, and return/refund denials**, as well as verified positive experiences.
-
----
-
-## 📸 How It Works
-
-1. **Native Chrome Side Panel**: Docked right beside your Flipkart tab—just like Chrome Gemini.
-2. **Instant Consensus**: Displays a live community verdict:
-   - 🚨 **DON'T BUY** (High scam / refund denial rate)
-   - ⚠️ **CAUTION** (Frequent delivery/quality hassles)
-   - ✅ **NO ISSUES REPORTED** (Clean record)
-3. **Problem Breakdown**: Shows exact counts of:
-   - 🚫 Return / Refund Denied by Flipkart
-   - ⚠️ Counterfeit / Fake Item
-   - 📦 Wrong Item in Box (Soap, rocks, dummy items)
-   - 💥 Defective / Stopped Working
-   - 🚚 Delivery OTP Coercion / Delivery boy fraud
-4. **100% Anonymous Reporting**: Anyone can share what happened without giving up personal details or credentials.
-5. **Floating In-Page Trigger**: A discreet floating radar pill on Flipkart product pages that shows live risk level and opens the side panel in one click.
+An open-source Chrome Extension (Manifest V3) with a native Side Panel that allows online shoppers to anonymously share and view real community feedback on e-commerce product listings, including undelivered orders, auto-cancellations, delivery problems, counterfeit items, and return/refund denials, as well as verified positive experiences.
 
 ---
 
-## 🚀 Quick Setup (Load Extension into Chrome)
+## Features
 
-1. Open Google Chrome and go to:
+1. **Native Chrome Side Panel**: Docks neatly alongside product pages for easy viewing without covering product images or buy buttons.
+2. **Community Verdict**:
+   - **Avoid**: Flags high rates of non-delivery, fakes, or rejected refunds.
+   - **Caution**: Notes frequent replacement delays, defects, or delivery friction.
+   - **Positive**: Highlights verified genuine units and smooth fulfillment.
+3. **Issue Breakdown**: Categorized tracking for:
+   - Return / Refund Denied
+   - Undelivered / Marked Delivered Fraud
+   - Auto-cancelled by Seller / Platform
+   - Fake or Counterfeit Items
+   - Wrong Item Delivered
+   - Defective or Damaged Units
+   - Open Box / Delivery Inspection Refusal
+4. **Community Endorsement & Discussion**:
+   - Upvote helpful reports.
+   - "Facing same issue" one-click endorsement.
+   - Inline threaded comments to share resolution updates.
+5. **Anonymous Reporting**:
+   - Dynamic form switching between problem reporting and positive feedback.
+   - Optional order date calendar picker.
+   - No personal credentials or user tracking required.
+6. **In-Page Indicator**: Minimal floating badge on product pages showing live listing status and opening the side panel on click.
+
+---
+
+## Installation
+
+1. Clone or download this repository:
+   ```bash
+   git clone https://github.com/AkshayPL/community-watch.git
+   ```
+2. Open Google Chrome and navigate to:
    ```text
    chrome://extensions
    ```
-2. Enable **Developer mode** (toggle in the top-right corner).
-3. Click **Load unpacked** in the top-left.
-4. Select the `extension/` folder inside this repository:
-   ```text
-   c:\Users\fight\Documents\antigravity\noble-heisenberg\extension
-   ```
-5. Open any Flipkart product page (e.g. OnePlus Nord Buds, iPhones, SD cards).
-6. Click the **Trust Radar** icon in the Chrome toolbar or click the floating **"Trust Radar"** pill on the webpage:
-   - The native **Side Panel** will slide open on the right side of your screen!
+3. Enable **Developer mode** using the toggle switch in the top-right corner.
+4. Click the **Load unpacked** button in the top-left corner.
+5. Select the `extension` folder located inside the cloned repository.
 
 ---
 
-## 🌐 Free, Open-Source & Secure Data Storage
+## How to Use
 
-Here are the best free architectures for storing community data securely while welcoming open-source contributions:
-
-### Option A: Supabase (Recommended - Free PostgreSQL + Row-Level Security)
-* **Cost**: $0 / month (Free tier: 500MB DB, 50,000 monthly active users, unlimited API requests).
-* **Open Source**: 100% open-source PostgreSQL.
-* **Security (Row-Level Security / RLS)**:
-  - Anyone with the public `anon` key can read reports (`SELECT`).
-  - Anyone can submit new reports (`INSERT`), but the schema enforces strict validation (character limits, valid categories).
-  - Nobody can alter or delete existing reports (`UPDATE`/`DELETE` blocked for public `anon` role).
-* **Sample Supabase SQL Schema**:
-  ```sql
-  create table products (
-    pid text primary key,
-    title text,
-    category text,
-    default_seller text,
-    created_at timestamp with time zone default now()
-  );
-
-  create table reports (
-    id uuid default gen_random_uuid() primary key,
-    pid text references products(pid) on delete cascade,
-    user_alias text default 'Anonymous Shopper',
-    verdict text check (verdict in ('dont_buy', 'caution', 'buy')),
-    categories text[] not null,
-    seller_name text,
-    title text not null,
-    description text not null,
-    flipkart_resolution text check (flipkart_resolution in ('denied', 'pending', 'resolved')),
-    verified_purchase boolean default false,
-    helpful_count int default 0,
-    created_at timestamp with time zone default now()
-  );
-
-  -- Enable Row Level Security (RLS)
-  alter table reports enable row level security;
-
-  -- Allow public read access
-  create policy "Public can view reports" on reports for select using (true);
-
-  -- Allow public anonymous submission
-  create policy "Public can submit reports" on reports for insert with check (
-    length(description) >= 10 and length(description) <= 2000
-  );
-  ```
+1. Navigate to any supported e-commerce product listing.
+2. Click the **Community Watch** icon in the Chrome toolbar, or click the floating badge in the bottom-right corner of the page.
+3. The native side panel will open on the right side of the screen displaying real community experiences, issue breakdowns, and the report submission form.
 
 ---
 
-### Option B: Git-as-a-Database (GitHub Repo + Static CDN)
-* **Cost**: 100% Free Forever.
-* **How it works**:
-  - Each product has a JSON file: `data/products/{pid}.json`.
-  - Community members contribute via:
-    1. **GitHub Issues**: A user fills a "Report a Flipkart Scam" issue form.
-    2. **GitHub Actions**: A workflow automatically validates the issue, generates or appends to the JSON file, and commits it.
-    3. **Pull Requests**: Tech-savvy contributors can bulk-add or curate reports.
-  - **Extension queries**: Delivered through GitHub Pages or jsDelivr CDN (`https://cdn.jsdelivr.net/gh/your-username/flipkart-trust-radar@main/data/products/{pid}.json`).
-  - **Benefit**: 100% transparent revision history, zero hosting bills, resistant to censorship.
+## Legal Disclaimer
+
+Community Watch is an independent, community-driven consumer review tool. It is not affiliated with, endorsed by, or sponsored by Flipkart Internet Private Limited or any other marketplace. All brand names, product titles, and trademarks are the property of their respective owners.
 
 ---
 
-### Option C: Cloudflare D1 (Serverless SQLite) + Workers
-* **Cost**: Free tier includes 5GB storage, 5M reads/day, 100k writes/day.
-* Extremely low edge latency in India.
+## License
 
----
-
-## 💻 Local Development Server
-
-If you want to run the included Node.js API server locally:
-
-```bash
-cd backend
-npm install
-npm start
-```
-The server runs on `http://localhost:5050` and auto-seeds sample Flipkart products (including the OnePlus Nord Buds from your screenshot!).
+This project is open-source and licensed under the [MIT License](LICENSE).

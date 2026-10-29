@@ -204,13 +204,22 @@ function extractPidFromUrl(urlStr) {
 
   try {
     const url = new URL(urlStr);
-    const pidParam = url.searchParams.get('pid');
-    if (pidParam) return pidParam;
-
+    let canonicalPid = null;
     const match = url.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
     if (match && match[1]) {
-      return match[1];
+      canonicalPid = match[1];
     }
+    const variantPid = url.searchParams.get('pid');
+
+    // The master product item ID is canonical across all color and size variants
+    const primaryPid = canonicalPid || variantPid;
+    if (!primaryPid) return null;
+
+    return {
+      pid: primaryPid,
+      canonicalPid,
+      variantPid
+    };
   } catch (e) {}
   return null;
 }
@@ -225,8 +234,8 @@ async function loadCurrentTabProduct() {
     }
     currentTabId = tab.id;
 
-    const pid = extractPidFromUrl(tab.url);
-    if (!pid) {
+    const pidInfo = extractPidFromUrl(tab.url);
+    if (!pidInfo || !pidInfo.pid) {
       showEmptyState();
       return;
     }
@@ -236,18 +245,18 @@ async function loadCurrentTabProduct() {
       liveMeta = await chrome.tabs.sendMessage(tab.id, { action: 'get_product_meta' });
     } catch (e) {}
 
-    await loadProductData(pid, false, liveMeta);
+    await loadProductData(pidInfo.pid, false, liveMeta, pidInfo.variantPid);
   } catch (err) {
     showEmptyState();
   }
 }
 
-async function loadProductData(pid, forceRefresh = false, liveMeta = null) {
+async function loadProductData(pid, forceRefresh = false, liveMeta = null, variantPid = null) {
   showLoading();
   currentPid = pid;
 
   try {
-    const data = await window.TrustRadarAPI.getProductData(pid);
+    const data = await window.TrustRadarAPI.getProductData(pid, variantPid);
 
     if (liveMeta && liveMeta.title && (!data.title || data.title === "Flipkart Product")) {
       data.title = liveMeta.title;
@@ -268,7 +277,11 @@ function renderProductView(data) {
   emptyState.classList.add('hidden');
   productView.classList.remove('hidden');
 
-  productPidEl.textContent = `Listing ID: ${data.pid}`;
+  if (data.variantPid && data.variantPid !== data.pid) {
+    productPidEl.textContent = `Listing ID: ${data.pid} • Variant: ${data.variantPid}`;
+  } else {
+    productPidEl.textContent = `Listing ID: ${data.pid}`;
+  }
   productSellerEl.textContent = `Seller: ${data.defaultSeller || 'Direct/Unknown'}`;
   productTitleEl.textContent = data.title || "Flipkart Product Listing";
 
@@ -553,9 +566,11 @@ async function handleManualSearch() {
   const query = searchInput.value.trim();
   if (!query) return;
 
-  const pid = extractPidFromUrl(query) || query;
+  const pidInfo = extractPidFromUrl(query);
+  const pid = pidInfo ? pidInfo.pid : query;
+  const variantPid = pidInfo ? pidInfo.variantPid : null;
   searchBar.classList.add('hidden');
-  await loadProductData(pid, true);
+  await loadProductData(pid, true, null, variantPid);
 }
 
 async function handleReportSubmit(e) {

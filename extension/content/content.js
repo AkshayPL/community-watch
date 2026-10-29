@@ -7,20 +7,22 @@
 
   function extractProductInfo() {
     const url = location.href;
-    let pid = null;
+    let canonicalPid = null;
+    let variantPid = null;
 
     try {
       const parsedUrl = new URL(url);
-      pid = parsedUrl.searchParams.get('pid');
-      if (!pid) {
-        const match = parsedUrl.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
-        if (match && match[1]) {
-          pid = match[1];
-        }
+      const match = parsedUrl.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        canonicalPid = match[1];
+      }
+      variantPid = parsedUrl.searchParams.get('pid');
+      if (!canonicalPid) {
+        canonicalPid = variantPid;
       }
     } catch (e) {}
 
-    if (!pid) return null;
+    if (!canonicalPid) return null;
 
     let title = "";
     const titleEl = document.querySelector('h1 span.VU-ZEz') || 
@@ -42,7 +44,7 @@
       seller = sellerEl.textContent.replace(/^Seller:\s*/i, '').trim();
     }
 
-    return { pid, title, seller };
+    return { pid: canonicalPid, variantPid, title, seller };
   }
 
   async function updateBadge() {
@@ -89,7 +91,7 @@
 
     try {
       if (window.TrustRadarAPI) {
-        const data = await window.TrustRadarAPI.getProductData(info.pid);
+        const data = await window.TrustRadarAPI.getProductData(info.pid, info.variantPid);
         applyStatus(data?.stats);
       }
     } catch (e) {}

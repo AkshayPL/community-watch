@@ -114,13 +114,18 @@ class TrustRadarAPI {
   }
 
   // Fetch product & reports from Supabase cloud
-  async getProductData(pid) {
+  async getProductData(pid, variantPid) {
     if (!pid) return null;
+
+    const queryIds = Array.from(new Set([pid, variantPid].filter(Boolean)));
+    const filter = queryIds.length > 1
+      ? `pid=in.(${queryIds.map(encodeURIComponent).join(',')})`
+      : `pid=eq.${encodeURIComponent(pid)}`;
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/products?pid=eq.${encodeURIComponent(pid)}&select=*,reports(*)`, {
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/products?${filter}&select=*,reports(*)`, {
         headers: this.getSupabaseHeaders(),
         signal: controller.signal
       });
@@ -129,16 +134,26 @@ class TrustRadarAPI {
       if (res.ok) {
         const rows = await res.json();
         if (rows && rows.length > 0) {
-          const p = rows[0];
-          const rawReports = p.reports || [];
-          const normalized = rawReports.map(r => this._normalizeReport(r));
+          const primaryProduct = rows.find(r => r.pid === pid) || rows[0];
+          const allRawReports = rows.flatMap(p => p.reports || []);
+          const seen = new Set();
+          const uniqueReports = [];
+          for (const r of allRawReports) {
+            if (!seen.has(r.id)) {
+              seen.add(r.id);
+              uniqueReports.push(this._normalizeReport(r));
+            }
+          }
+
           return {
-            pid: p.pid,
-            title: p.title || "Flipkart Product",
-            category: p.category || "General",
-            defaultSeller: p.default_seller || "Flipkart Seller",
-            stats: this._calcStats(normalized),
-            reports: normalized.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0)),
+            pid: primaryProduct.pid,
+            canonicalPid: pid,
+            variantPid: variantPid,
+            title: primaryProduct.title || "Flipkart Product",
+            category: primaryProduct.category || "General",
+            defaultSeller: primaryProduct.default_seller || "Flipkart Seller",
+            stats: this._calcStats(uniqueReports),
+            reports: uniqueReports.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0)),
             source: 'supabase'
           };
         }
@@ -150,12 +165,13 @@ class TrustRadarAPI {
     // Local Storage / Seed Fallback
     return new Promise((resolve) => {
       chrome.storage.local.get(['custom_reports'], (result) => {
-        const custom = (result.custom_reports && result.custom_reports[pid]) || null;
-        const seed = FALLBACK_SEEDS[pid] || null;
+        const custom = (result.custom_reports && (result.custom_reports[pid] || result.custom_reports[variantPid])) || null;
+        const seed = FALLBACK_SEEDS[pid] || FALLBACK_SEEDS[variantPid] || null;
 
         if (!seed && !custom) {
           return resolve({
             pid,
+            variantPid,
             title: "",
             stats: this._calcStats([]),
             reports: [],
@@ -176,6 +192,7 @@ class TrustRadarAPI {
 
         resolve({
           pid,
+          variantPid,
           title: base.title || "Flipkart Product",
           category: base.category || "General",
           defaultSeller: base.defaultSeller || "Flipkart Seller",

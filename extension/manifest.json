@@ -27,7 +27,7 @@
   ],
   "host_permissions": [
     "*://*.flipkart.com/*",
-    "http://localhost:5050/*"
+    "https://zlfjzgveqzecaazbsjyu.supabase.co/*"
   ],
   "background": {
     "service_worker": "background/background.js"

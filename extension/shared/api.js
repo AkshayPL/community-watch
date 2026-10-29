@@ -1,8 +1,9 @@
-// Flipkart Trust Radar - API Client with Hybrid Offline / Local / Remote Backend Support
+// Community Watch - API Client with Supabase Cloud & Local Fallback
 
-const API_BASE_URL = 'http://localhost:5050/api';
+const SUPABASE_URL = 'https://zlfjzgveqzecaazbsjyu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5hTuAaZagvfVna3cJb5gfA_6XdmtbmP';
 
-// Built-in fallback database for instant out-of-the-box experience without running server
+// Built-in fallback database for instant out-of-the-box experience or offline mode
 const FALLBACK_SEEDS = {
   "itm87ffbf2a0bf08": {
     pid: "itm87ffbf2a0bf08",
@@ -19,6 +20,8 @@ const FALLBACK_SEEDS = {
       cautionPercent: 33,
       buyPercent: 0,
       refundDeniedCount: 2,
+      undeliveredCount: 0,
+      autocancelledCount: 0,
       scamCount: 1,
       wrongItemCount: 0,
       qualityCount: 1,
@@ -83,101 +86,6 @@ const FALLBACK_SEEDS = {
         timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       }
     ]
-  },
-  "MOBFWBYZ8GU7HH78": {
-    pid: "MOBFWBYZ8GU7HH78",
-    title: "Apple iPhone 14 (Midnight, 128 GB)",
-    category: "Mobiles",
-    defaultSeller: "RetailNetSuperDeal",
-    stats: {
-      totalReports: 3,
-      verdict: "dont_buy",
-      dontBuyVotes: 2,
-      cautionVotes: 1,
-      buyVotes: 0,
-      dontBuyPercent: 67,
-      cautionPercent: 33,
-      buyPercent: 0,
-      refundDeniedCount: 2,
-      scamCount: 1,
-      wrongItemCount: 1,
-      qualityCount: 0,
-      deliveryCount: 1,
-      categoryBreakdown: {
-        wrong_item: 1,
-        refund_denied: 2,
-        scam_fake: 1,
-        delivery_issue: 1
-      }
-    },
-    reports: [
-      {
-        id: "rep-001",
-        pid: "MOBFWBYZ8GU7HH78",
-        userAlias: "Anonymous Buyer (Bengaluru)",
-        verdict: "dont_buy",
-        categories: ["wrong_item", "refund_denied"],
-        sellerName: "SuperComNet Sellers",
-        title: "Delivered counterfeit handset & Flipkart rejected refund",
-        description: "Opted for open box delivery. The delivery person forced me to share the OTP first before opening. When we opened the box, there was an old damaged Android phone instead of iPhone 14. Delivery guy ran away. Flipkart refused replacement claiming OTP was shared voluntarily!",
-        flipkartResolution: "denied",
-        verifiedPurchase: true,
-        helpfulCount: 47,
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: "rep-002",
-        pid: "MOBFWBYZ8GU7HH78",
-        userAlias: "Disappointed Shopper #104",
-        verdict: "dont_buy",
-        categories: ["scam_fake", "refund_denied"],
-        sellerName: "RetailNetSuperDeal",
-        title: "Refurbished unit sold as brand new, warranty void",
-        description: "Phone had micro-scratches on the lens and Apple warranty status showed it was activated 6 months prior. Flipkart denied return saying technical verification failed.",
-        flipkartResolution: "denied",
-        verifiedPurchase: true,
-        helpfulCount: 32,
-        timestamp: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ]
-  },
-  "PENF62H5Q8J9Z7A1": {
-    pid: "PENF62H5Q8J9Z7A1",
-    title: "SanDisk Ultra 128 GB MicroSDXC Class 10 Memory Card",
-    category: "Storage",
-    defaultSeller: "TechGadgetsStore",
-    stats: {
-      totalReports: 2,
-      verdict: "dont_buy",
-      dontBuyVotes: 2,
-      cautionVotes: 0,
-      buyVotes: 0,
-      dontBuyPercent: 100,
-      cautionPercent: 0,
-      buyPercent: 0,
-      refundDeniedCount: 1,
-      scamCount: 2,
-      wrongItemCount: 0,
-      qualityCount: 1,
-      deliveryCount: 0,
-      categoryBreakdown: { scam_fake: 2, refund_denied: 1, quality_defect: 1 }
-    },
-    reports: [
-      {
-        id: "rep-101",
-        pid: "PENF62H5Q8J9Z7A1",
-        userAlias: "TechieShopper #31",
-        verdict: "dont_buy",
-        categories: ["scam_fake", "refund_denied"],
-        sellerName: "TechGadgetsStore",
-        title: "100% Counterfeit: Only 16GB actual capacity spoofed firmware",
-        description: "Ran H2testw on this card. It is a hacked 16GB micro SD card programmed to display 128GB. After 16GB, all files become permanently corrupted! Flipkart customer support refused refund saying memory cards are replacement only.",
-        flipkartResolution: "denied",
-        verifiedPurchase: true,
-        helpfulCount: 89,
-        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ]
   }
 };
 
@@ -197,63 +105,49 @@ class TrustRadarAPI {
     });
   }
 
-  getHardwareFingerprint() {
-    try {
-      const gl = document.createElement('canvas').getContext('webgl');
-      const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
-      const gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'default_gpu';
-      const screenInfo = `${screen.width}x${screen.height}x${screen.colorDepth}`;
-      const cores = navigator.hardwareConcurrency || 4;
-      return btoa(`${gpu}|${screenInfo}|${cores}`).substring(0, 32);
-    } catch (e) {
-      return 'generic_fingerprint';
-    }
-  }
-
-  async getRequestHeaders() {
-    const deviceId = await this.getOrCreateDeviceId();
-    const fp = this.getHardwareFingerprint();
+  getSupabaseHeaders() {
     return {
-      'Content-Type': 'application/json',
-      'X-Device-Id': deviceId,
-      'X-Hardware-Fingerprint': fp
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
     };
   }
 
-  async initStorage() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['custom_reports', 'voted_reports'], (result) => {
-        if (!result.custom_reports) {
-          chrome.storage.local.set({ custom_reports: {}, voted_reports: [] }, resolve);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
+  // Fetch product & reports from Supabase cloud
   async getProductData(pid) {
     if (!pid) return null;
 
-    // Try live backend first
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
-      const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(pid)}`, {
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/products?pid=eq.${encodeURIComponent(pid)}&select=*,reports(*)`, {
+        headers: this.getSupabaseHeaders(),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
+
       if (res.ok) {
-        const data = await res.json();
-        if (data && (data.reports.length > 0 || data.title)) {
-          return { ...data, source: 'backend' };
+        const rows = await res.json();
+        if (rows && rows.length > 0) {
+          const p = rows[0];
+          const rawReports = p.reports || [];
+          const normalized = rawReports.map(r => this._normalizeReport(r));
+          return {
+            pid: p.pid,
+            title: p.title || "Flipkart Product",
+            category: p.category || "General",
+            defaultSeller: p.default_seller || "Flipkart Seller",
+            stats: this._calcStats(normalized),
+            reports: normalized.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0)),
+            source: 'supabase'
+          };
         }
       }
     } catch (e) {
-      // Backend not running, fallback to local storage
+      // Network or Supabase offline, fall back to local storage
     }
 
-    // Check local Chrome storage + Fallback seeds
+    // Local Storage / Seed Fallback
     return new Promise((resolve) => {
       chrome.storage.local.get(['custom_reports'], (result) => {
         const custom = (result.custom_reports && result.custom_reports[pid]) || null;
@@ -263,22 +157,7 @@ class TrustRadarAPI {
           return resolve({
             pid,
             title: "",
-            stats: {
-              totalReports: 0,
-              verdict: "safe",
-              dontBuyVotes: 0,
-              cautionVotes: 0,
-              buyVotes: 0,
-              dontBuyPercent: 0,
-              cautionPercent: 0,
-              buyPercent: 0,
-              refundDeniedCount: 0,
-              scamCount: 0,
-              wrongItemCount: 0,
-              qualityCount: 0,
-              deliveryCount: 0,
-              categoryBreakdown: {}
-            },
+            stats: this._calcStats([]),
             reports: [],
             source: 'local'
           });
@@ -286,8 +165,6 @@ class TrustRadarAPI {
 
         const base = custom || seed;
         const allReports = [...(custom?.reports || []), ...(seed?.reports || [])];
-        
-        // Deduplicate reports by id
         const uniqueReports = [];
         const seenIds = new Set();
         for (const r of allReports) {
@@ -310,24 +187,59 @@ class TrustRadarAPI {
     });
   }
 
+  // Submit report to Supabase
   async submitReport(pid, reportData) {
-    // 1. Try sending to backend
+    const devId = await this.getOrCreateDeviceId();
+
+    // 1. Try cloud submission to Supabase
     try {
-      const headers = await this.getRequestHeaders();
-      const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(pid)}/reports`, {
+      // Upsert product master
+      await fetch(`${SUPABASE_URL}/rest/v1/products`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(reportData)
+        headers: {
+          ...this.getSupabaseHeaders(),
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          pid,
+          title: reportData.productTitle || "Flipkart Product",
+          category: reportData.productCategory || "General",
+          default_seller: reportData.sellerName || "Flipkart Seller"
+        })
       });
+
+      // Insert report
+      const repPayload = {
+        pid,
+        user_alias: reportData.userAlias || "Anonymous Shopper",
+        verdict: reportData.verdict || "dont_buy",
+        categories: Array.isArray(reportData.categories) ? reportData.categories : [reportData.categories],
+        seller_name: reportData.sellerName || "Unknown Seller",
+        order_date: reportData.orderDate || null,
+        title: (reportData.title || "").trim(),
+        description: (reportData.description || "").trim(),
+        flipkart_resolution: reportData.flipkartResolution || "denied",
+        verified_purchase: Boolean(reportData.verifiedPurchase)
+      };
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
+        method: 'POST',
+        headers: {
+          ...this.getSupabaseHeaders(),
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(repPayload)
+      });
+
       if (res.ok) {
-        const json = await res.json();
-        return json.report;
+        const inserted = await res.json();
+        return this._normalizeReport(inserted[0]);
       }
     } catch (e) {
-      // Backend offline, save to local storage
+      // Cloud insert failed, fall back to local storage
     }
 
-    // 2. Save locally into chrome.storage.local
+    // 2. Local fallback
     return new Promise((resolve) => {
       chrome.storage.local.get(['custom_reports'], (result) => {
         const custom = result.custom_reports || {};
@@ -344,15 +256,18 @@ class TrustRadarAPI {
         const newReport = {
           id: "rep-local-" + Date.now(),
           pid,
-          userAlias: reportData.userAlias || "Anonymous Shopper #" + Math.floor(100 + Math.random() * 900),
+          userAlias: reportData.userAlias || "Anonymous Buyer",
           verdict: reportData.verdict || "dont_buy",
           categories: Array.isArray(reportData.categories) ? reportData.categories : [reportData.categories],
           sellerName: reportData.sellerName || "Unknown Seller",
+          orderDate: reportData.orderDate || null,
           title: (reportData.title || "").trim(),
           description: (reportData.description || "").trim(),
           flipkartResolution: reportData.flipkartResolution || "denied",
           verifiedPurchase: Boolean(reportData.verifiedPurchase),
           helpfulCount: 0,
+          sameIssueCount: 0,
+          comments: [],
           timestamp: new Date().toISOString()
         };
 
@@ -364,40 +279,43 @@ class TrustRadarAPI {
     });
   }
 
+  // Upvote helpful count
   async voteHelpful(reportId) {
-    // Check if already voted
-    const voted = await new Promise((resolve) => {
+    const alreadyVoted = await new Promise((resolve) => {
       chrome.storage.local.get(['voted_reports'], (res) => {
         const list = res.voted_reports || [];
         resolve(list.includes(reportId));
       });
     });
 
-    if (voted) return { alreadyVoted: true };
+    if (alreadyVoted) return { alreadyVoted: true };
 
     try {
-      const headers = await this.getRequestHeaders();
-      await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(reportId)}/vote`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ delta: 1 })
+      // Fetch current helpful_count
+      const fetchRes = await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}&select=helpful_count`, {
+        headers: this.getSupabaseHeaders()
       });
-    } catch (e) {
-      // Ignore
-    }
+      if (fetchRes.ok) {
+        const rows = await fetchRes.json();
+        const currentCount = rows[0]?.helpful_count || 0;
+        await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}`, {
+          method: 'PATCH',
+          headers: this.getSupabaseHeaders(),
+          body: JSON.stringify({ helpful_count: currentCount + 1 })
+        });
+      }
+    } catch (e) {}
 
-    // Mark as voted in local storage
     return new Promise((resolve) => {
       chrome.storage.local.get(['voted_reports'], (res) => {
         const list = res.voted_reports || [];
         list.push(reportId);
-        chrome.storage.local.set({ voted_reports: list }, () => {
-          resolve({ success: true });
-        });
+        chrome.storage.local.set({ voted_reports: list }, () => resolve({ success: true }));
       });
     });
   }
 
+  // Endorse "Facing same issue"
   async endorseSameIssue(reportId) {
     const alreadyEndorsed = await new Promise((resolve) => {
       chrome.storage.local.get(['same_issue_reports'], (res) => {
@@ -409,94 +327,106 @@ class TrustRadarAPI {
     if (alreadyEndorsed) return { alreadyEndorsed: true };
 
     try {
-      const headers = await this.getRequestHeaders();
-      await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(reportId)}/same-issue`, {
-        method: 'POST',
-        headers
+      const fetchRes = await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}&select=same_issue_count`, {
+        headers: this.getSupabaseHeaders()
       });
+      if (fetchRes.ok) {
+        const rows = await fetchRes.json();
+        const currentCount = rows[0]?.same_issue_count || 0;
+        await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}`, {
+          method: 'PATCH',
+          headers: this.getSupabaseHeaders(),
+          body: JSON.stringify({ same_issue_count: currentCount + 1 })
+        });
+      }
     } catch (e) {}
 
     return new Promise((resolve) => {
-      chrome.storage.local.get(['same_issue_reports', 'custom_reports'], (res) => {
+      chrome.storage.local.get(['same_issue_reports'], (res) => {
         const list = res.same_issue_reports || [];
         list.push(reportId);
-        
-        // Update local report count if cached
-        const custom = res.custom_reports || {};
-        for (const pid in custom) {
-          const rep = custom[pid].reports?.find(r => r.id === reportId);
-          if (rep) {
-            rep.sameIssueCount = (rep.sameIssueCount || 0) + 1;
-          }
-        }
-
-        chrome.storage.local.set({ same_issue_reports: list, custom_reports: custom }, () => {
-          resolve({ success: true });
-        });
+        chrome.storage.local.set({ same_issue_reports: list }, () => resolve({ success: true }));
       });
     });
   }
 
+  // Add comment to report
   async addComment(reportId, text, author) {
-    const commentPayload = {
-      author: author || "Anonymous Shopper",
-      text: (text || "").trim()
+    const newComment = {
+      id: "cmt-" + Date.now(),
+      author: author || "Anonymous Buyer",
+      text: (text || "").trim(),
+      timestamp: new Date().toISOString()
     };
 
     try {
-      const headers = await this.getRequestHeaders();
-      const res = await fetch(`${API_BASE_URL}/reports/${encodeURIComponent(reportId)}/comments`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(commentPayload)
+      const fetchRes = await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}&select=comments`, {
+        headers: this.getSupabaseHeaders()
       });
-      if (res.ok) {
-        const json = await res.json();
-        return json.comment;
+      if (fetchRes.ok) {
+        const rows = await fetchRes.json();
+        const currentComments = Array.isArray(rows[0]?.comments) ? rows[0].comments : [];
+        currentComments.push(newComment);
+        await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${encodeURIComponent(reportId)}`, {
+          method: 'PATCH',
+          headers: this.getSupabaseHeaders(),
+          body: JSON.stringify({ comments: currentComments })
+        });
+        return newComment;
       }
     } catch (e) {}
 
-    // Fallback: save to chrome.storage.local
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['custom_reports'], (res) => {
-        const custom = res.custom_reports || {};
-        const newComment = {
-          id: "cmt-" + Date.now(),
-          author: commentPayload.author,
-          text: commentPayload.text,
-          timestamp: new Date().toISOString()
-        };
-
-        for (const pid in custom) {
-          const rep = custom[pid].reports?.find(r => r.id === reportId);
-          if (rep) {
-            if (!rep.comments) rep.comments = [];
-            rep.comments.push(newComment);
-          }
-        }
-
-        chrome.storage.local.set({ custom_reports: custom }, () => {
-          resolve(newComment);
-        });
-      });
-    });
+    return newComment;
   }
 
+  // Get trending products from cloud
   async getTrending() {
     try {
-      const res = await fetch(`${API_BASE_URL}/trending`);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,reports(*)&limit=6`, {
+        headers: this.getSupabaseHeaders()
+      });
       if (res.ok) {
-        return await res.json();
+        const rows = await res.json();
+        if (rows && rows.length > 0) {
+          return rows.map(p => {
+            const normalized = (p.reports || []).map(r => this._normalizeReport(r));
+            return {
+              pid: p.pid,
+              title: p.title,
+              stats: this._calcStats(normalized),
+              recentReport: normalized[0] || null
+            };
+          });
+        }
       }
     } catch (e) {}
 
-    // Fallback list
     return Object.values(FALLBACK_SEEDS).map(p => ({
       pid: p.pid,
       title: p.title,
       stats: p.stats,
       recentReport: p.reports[0] || null
     }));
+  }
+
+  _normalizeReport(r) {
+    return {
+      id: r.id,
+      pid: r.pid,
+      userAlias: r.user_alias || "Anonymous Buyer",
+      verdict: r.verdict || "dont_buy",
+      categories: r.categories || [],
+      sellerName: r.seller_name || "",
+      orderDate: r.order_date || null,
+      title: r.title || "",
+      description: r.description || "",
+      flipkartResolution: r.flipkart_resolution || "denied",
+      verifiedPurchase: Boolean(r.verified_purchase),
+      helpfulCount: r.helpful_count || 0,
+      sameIssueCount: r.same_issue_count || 0,
+      comments: Array.isArray(r.comments) ? r.comments : [],
+      timestamp: r.created_at || new Date().toISOString()
+    };
   }
 
   _calcStats(reports) {
@@ -583,7 +513,6 @@ class TrustRadarAPI {
   }
 }
 
-// Export for extension scripts
 if (typeof window !== 'undefined') {
   window.TrustRadarAPI = new TrustRadarAPI();
 }

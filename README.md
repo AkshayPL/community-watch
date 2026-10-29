@@ -33,17 +33,27 @@ An open-source Chrome Extension (Manifest V3) with a native Side Panel that allo
 
 ## Installation
 
+### Option 1: Download Pre-built Release (Recommended)
+
+1. Download the latest `community-watch-extension.zip` from [Releases](https://github.com/AkshayPL/community-watch/releases).
+2. Extract the zip file to any folder on your computer.
+3. Open Google Chrome and navigate to:
+   ```text
+   chrome://extensions
+   ```
+4. Enable **Developer mode** using the toggle switch in the top-right corner.
+5. Click the **Load unpacked** button in the top-left corner.
+6. Select the extracted folder.
+
+### Option 2: From Source / Git Clone
+
 1. Clone or download this repository:
    ```bash
    git clone https://github.com/AkshayPL/community-watch.git
    ```
-2. Open Google Chrome and navigate to:
-   ```text
-   chrome://extensions
-   ```
-3. Enable **Developer mode** using the toggle switch in the top-right corner.
-4. Click the **Load unpacked** button in the top-left corner.
-5. Select the `extension` folder located inside the cloned repository.
+2. Open Google Chrome and navigate to `chrome://extensions`.
+3. Enable **Developer mode** in the top-right corner.
+4. Click **Load unpacked** and select the `extension` folder inside the repository.
 
 ---
 

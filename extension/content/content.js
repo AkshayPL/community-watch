@@ -7,22 +7,30 @@
 
   function extractProductInfo() {
     const url = location.href;
-    let canonicalPid = null;
+    let slug = null;
+    let itmId = null;
     let variantPid = null;
 
     try {
       const parsedUrl = new URL(url);
-      const match = parsedUrl.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
-      if (match && match[1]) {
-        canonicalPid = match[1];
+      const slugMatch = parsedUrl.pathname.match(/^\/([^/]+)\/p\//);
+      if (slugMatch && slugMatch[1] && slugMatch[1] !== 'p') {
+        slug = slugMatch[1];
       }
+
+      const itmMatch = parsedUrl.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
+      if (itmMatch && itmMatch[1]) {
+        itmId = itmMatch[1];
+      }
+
       variantPid = parsedUrl.searchParams.get('pid');
-      if (!canonicalPid) {
-        canonicalPid = variantPid;
-      }
     } catch (e) {}
 
+    // Canonical identifier: slug (stable across all colors & sizes) > itmId > variantPid
+    const canonicalPid = slug || itmId || variantPid;
     if (!canonicalPid) return null;
+
+    const allIds = Array.from(new Set([slug, itmId, variantPid].filter(Boolean)));
 
     let title = "";
     const titleEl = document.querySelector('h1 span.VU-ZEz') || 
@@ -44,7 +52,16 @@
       seller = sellerEl.textContent.replace(/^Seller:\s*/i, '').trim();
     }
 
-    return { pid: canonicalPid, variantPid, title, seller };
+    return { 
+      pid: canonicalPid, 
+      canonicalPid, 
+      slug, 
+      itmId, 
+      variantPid, 
+      allIds, 
+      title, 
+      seller 
+    };
   }
 
   async function updateBadge() {
@@ -91,7 +108,7 @@
 
     try {
       if (window.TrustRadarAPI) {
-        const data = await window.TrustRadarAPI.getProductData(info.pid, info.variantPid);
+        const data = await window.TrustRadarAPI.getProductData(info.pid, info.allIds);
         applyStatus(data?.stats);
       }
     } catch (e) {}

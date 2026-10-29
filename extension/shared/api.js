@@ -114,10 +114,12 @@ class TrustRadarAPI {
   }
 
   // Fetch product & reports from Supabase cloud
-  async getProductData(pid, variantPid) {
+  async getProductData(pid, allIds = []) {
     if (!pid) return null;
 
-    const queryIds = Array.from(new Set([pid, variantPid].filter(Boolean)));
+    const queryIds = Array.isArray(allIds) && allIds.length > 0
+      ? Array.from(new Set([pid, ...allIds].filter(Boolean)))
+      : [pid];
     const filter = queryIds.length > 1
       ? `pid=in.(${queryIds.map(encodeURIComponent).join(',')})`
       : `pid=eq.${encodeURIComponent(pid)}`;
@@ -148,7 +150,7 @@ class TrustRadarAPI {
           return {
             pid: primaryProduct.pid,
             canonicalPid: pid,
-            variantPid: variantPid,
+            allIds: queryIds,
             title: primaryProduct.title || "Flipkart Product",
             category: primaryProduct.category || "General",
             defaultSeller: primaryProduct.default_seller || "Flipkart Seller",
@@ -165,13 +167,23 @@ class TrustRadarAPI {
     // Local Storage / Seed Fallback
     return new Promise((resolve) => {
       chrome.storage.local.get(['custom_reports'], (result) => {
-        const custom = (result.custom_reports && (result.custom_reports[pid] || result.custom_reports[variantPid])) || null;
-        const seed = FALLBACK_SEEDS[pid] || FALLBACK_SEEDS[variantPid] || null;
+        let custom = null;
+        let seed = null;
+        for (const id of queryIds) {
+          if (result.custom_reports && result.custom_reports[id]) {
+            custom = result.custom_reports[id];
+            break;
+          }
+          if (FALLBACK_SEEDS[id]) {
+            seed = FALLBACK_SEEDS[id];
+            break;
+          }
+        }
 
         if (!seed && !custom) {
           return resolve({
             pid,
-            variantPid,
+            allIds: queryIds,
             title: "",
             stats: this._calcStats([]),
             reports: [],
@@ -192,7 +204,7 @@ class TrustRadarAPI {
 
         resolve({
           pid,
-          variantPid,
+          allIds: queryIds,
           title: base.title || "Flipkart Product",
           category: base.category || "General",
           defaultSeller: base.defaultSeller || "Flipkart Seller",

@@ -204,21 +204,32 @@ function extractPidFromUrl(urlStr) {
 
   try {
     const url = new URL(urlStr);
-    let canonicalPid = null;
+    let slug = null;
+    const slugMatch = url.pathname.match(/^\/([^/]+)\/p\//);
+    if (slugMatch && slugMatch[1] && slugMatch[1] !== 'p') {
+      slug = slugMatch[1];
+    }
+
+    let itmId = null;
     const match = url.pathname.match(/\/p\/(itm[a-zA-Z0-9]+)/);
     if (match && match[1]) {
-      canonicalPid = match[1];
+      itmId = match[1];
     }
     const variantPid = url.searchParams.get('pid');
 
-    // The master product item ID is canonical across all color and size variants
-    const primaryPid = canonicalPid || variantPid;
+    // Canonical ID prioritizes product slug (stable across ALL colors & sizes) > itmId > variantPid
+    const primaryPid = slug || itmId || variantPid;
     if (!primaryPid) return null;
+
+    const allIds = Array.from(new Set([slug, itmId, variantPid].filter(Boolean)));
 
     return {
       pid: primaryPid,
-      canonicalPid,
-      variantPid
+      canonicalPid: primaryPid,
+      slug,
+      itmId,
+      variantPid,
+      allIds
     };
   } catch (e) {}
   return null;
@@ -245,18 +256,25 @@ async function loadCurrentTabProduct() {
       liveMeta = await chrome.tabs.sendMessage(tab.id, { action: 'get_product_meta' });
     } catch (e) {}
 
-    await loadProductData(pidInfo.pid, false, liveMeta, pidInfo.variantPid);
+    await loadProductData(pidInfo.pid, false, liveMeta, pidInfo.allIds, pidInfo);
   } catch (err) {
     showEmptyState();
   }
 }
 
-async function loadProductData(pid, forceRefresh = false, liveMeta = null, variantPid = null) {
+async function loadProductData(pid, forceRefresh = false, liveMeta = null, allIds = [], metaInfo = null) {
   showLoading();
   currentPid = pid;
 
   try {
-    const data = await window.TrustRadarAPI.getProductData(pid, variantPid);
+    const queryIds = Array.isArray(allIds) && allIds.length > 0 ? allIds : [pid];
+    const data = await window.TrustRadarAPI.getProductData(pid, queryIds);
+
+    if (metaInfo) {
+      data.variantPid = metaInfo.variantPid || data.variantPid;
+      data.itmId = metaInfo.itmId || data.itmId;
+      data.slug = metaInfo.slug || data.slug;
+    }
 
     if (liveMeta && liveMeta.title && (!data.title || data.title === "Flipkart Product")) {
       data.title = liveMeta.title;
@@ -277,10 +295,11 @@ function renderProductView(data) {
   emptyState.classList.add('hidden');
   productView.classList.remove('hidden');
 
-  if (data.variantPid && data.variantPid !== data.pid) {
-    productPidEl.textContent = `Listing ID: ${data.pid} • Variant: ${data.variantPid}`;
+  const displayId = data.slug || data.pid;
+  if (data.variantPid) {
+    productPidEl.textContent = `Listing: ${displayId} • SKU: ${data.variantPid}`;
   } else {
-    productPidEl.textContent = `Listing ID: ${data.pid}`;
+    productPidEl.textContent = `Listing: ${displayId}`;
   }
   productSellerEl.textContent = `Seller: ${data.defaultSeller || 'Direct/Unknown'}`;
   productTitleEl.textContent = data.title || "Flipkart Product Listing";
@@ -568,9 +587,8 @@ async function handleManualSearch() {
 
   const pidInfo = extractPidFromUrl(query);
   const pid = pidInfo ? pidInfo.pid : query;
-  const variantPid = pidInfo ? pidInfo.variantPid : null;
   searchBar.classList.add('hidden');
-  await loadProductData(pid, true, null, variantPid);
+  await loadProductData(pid, true, null, pidInfo ? pidInfo.allIds : [pid], pidInfo);
 }
 
 async function handleReportSubmit(e) {

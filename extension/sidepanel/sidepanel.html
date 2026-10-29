@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flipkart Community Watch</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="panel">
+    <!-- Top bar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <svg class="brand-glyph" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+        <span class="brand-name">Community Watch</span>
+      </div>
+      <div class="nav-controls">
+        <button id="searchToggleBtn" class="nav-btn" aria-label="Search product" title="Search product">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+        <button id="refreshBtn" class="nav-btn" aria-label="Refresh" title="Refresh">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 21h5v-5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search drawer -->
+    <div id="searchBar" class="search-drawer hidden">
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="Search by PID or paste Flipkart link..." spellcheck="false" />
+        <button id="searchSubmitBtn">Lookup</button>
+      </div>
+    </div>
+
+    <!-- Scrollable container -->
+    <div class="panel-body">
+      <!-- Loading state -->
+      <div id="loadingState" class="state-container hidden">
+        <div class="loader-spinner"></div>
+        <span class="state-note">Checking product reports...</span>
+      </div>
+
+      <!-- Empty state (No product active) -->
+      <div id="emptyState" class="state-container hidden">
+        <div class="empty-hero">
+          <div class="hero-circle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <h3>No active product detected</h3>
+          <p>Navigate to any product page on Flipkart to review crowdsourced warnings and buyer experiences.</p>
+        </div>
+
+        <div class="explore-section">
+          <div class="section-label">Recently Flagged Listings</div>
+          <div id="trendingList" class="trending-stack"></div>
+        </div>
+      </div>
+
+      <!-- Main Product View -->
+      <div id="productView" class="product-layout">
+        <!-- Product Context Header -->
+        <section class="overview-card">
+          <div class="product-identification">
+            <span class="sku-tag" id="productPid">--</span>
+            <span class="seller-tag" id="productSeller">--</span>
+          </div>
+          <h2 class="item-title" id="productTitle">--</h2>
+
+          <!-- Risk / Consensus Meter -->
+          <div class="risk-card" id="riskCard">
+            <div class="risk-header">
+              <div class="risk-indicator" id="riskIndicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="status-title" id="verdictText">Assessing listing</span>
+              </div>
+              <span class="consensus-ratio" id="scorePercent">--</span>
+            </div>
+
+            <!-- Segmented ratio bar -->
+            <div class="ratio-bar">
+              <div class="ratio-segment segment-danger" id="segmentDanger" style="width: 0%"></div>
+              <div class="ratio-segment segment-warning" id="segmentWarning" style="width: 0%"></div>
+              <div class="ratio-segment segment-safe" id="segmentSafe" style="width: 0%"></div>
+            </div>
+
+            <p class="risk-detail" id="trustSummary">Gathering community data...</p>
+
+            <!-- Categorical Breakdown -->
+            <div class="tag-row" id="statChips">
+              <span class="issue-pill" id="chipRefund">0 refund denied</span>
+              <span class="issue-pill" id="chipUndelivered">0 undelivered</span>
+              <span class="issue-pill" id="chipAutocancelled">0 auto-cancelled</span>
+              <span class="issue-pill" id="chipFake">0 counterfeit</span>
+              <span class="issue-pill" id="chipWrong">0 wrong item</span>
+              <span class="issue-pill" id="chipDelivery">0 delivery issue</span>
+              <span class="issue-pill" id="chipPositive">0 positive</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Filter bar -->
+        <div class="filter-strip">
+          <div class="filter-list">
+            <button class="filter-chip active" data-filter="all">All <span class="badge" id="countAll">0</span></button>
+            <button class="filter-chip" data-filter="positive">Positive <span class="badge" id="countPositive">0</span></button>
+            <button class="filter-chip" data-filter="refund_denied">Refund Denied <span class="badge" id="countRefund">0</span></button>
+            <button class="filter-chip" data-filter="undelivered">Undelivered <span class="badge" id="countUndelivered">0</span></button>
+            <button class="filter-chip" data-filter="autocancelled">Auto-cancelled <span class="badge" id="countAutocancelled">0</span></button>
+            <button class="filter-chip" data-filter="scam_fake">Fakes <span class="badge" id="countFake">0</span></button>
+            <button class="filter-chip" data-filter="wrong_item">Wrong Item <span class="badge" id="countWrong">0</span></button>
+            <button class="filter-chip" data-filter="quality_defect">Defects <span class="badge" id="countDefect">0</span></button>
+            <button class="filter-chip" data-filter="delivery_issue">Delivery <span class="badge" id="countDelivery">0</span></button>
+          </div>
+        </div>
+
+        <!-- Community Feed -->
+        <section class="feed-section">
+          <div class="feed-header">
+            <span class="feed-title">User Reports</span>
+            <span class="feed-meta">Anonymous & crowdsourced</span>
+          </div>
+
+          <div id="reportsList" class="reports-flow"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Bottom Action Bar -->
+    <footer class="action-footer">
+      <button id="openReportFormBtn" class="btn-report-action">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        <span>Submit a report</span>
+      </button>
+      <div class="legal-notice">
+        Independent consumer review tool. Not affiliated with or endorsed by Flipkart Internet Pvt. Ltd.
+      </div>
+    </footer>
+
+    <!-- Slide-up Report Form Drawer -->
+    <div id="reportModal" class="drawer-backdrop hidden">
+      <div class="drawer">
+        <div class="drawer-header">
+          <div>
+            <h3>Report an issue</h3>
+            <p>Your submission is published anonymously</p>
+          </div>
+          <button id="closeModalBtn" class="drawer-close" aria-label="Close">&times;</button>
+        </div>
+
+        <form id="newReportForm" class="drawer-form">
+          <!-- Verdict -->
+          <div class="field">
+            <label class="label">Overall verdict</label>
+            <div class="verdict-grid">
+              <label class="verdict-option opt-avoid">
+                <input type="radio" name="formVerdict" value="dont_buy" checked>
+                <div class="opt-body">
+                  <div class="opt-name">Avoid</div>
+                  <div class="opt-desc">Scam, fake, or money lost</div>
+                </div>
+              </label>
+
+              <label class="verdict-option opt-caution">
+                <input type="radio" name="formVerdict" value="caution">
+                <div class="opt-body">
+                  <div class="opt-name">Caution</div>
+                  <div class="opt-desc">Defective or poor support</div>
+                </div>
+              </label>
+
+              <label class="verdict-option opt-positive">
+                <input type="radio" name="formVerdict" value="positive">
+                <div class="opt-body">
+                  <div class="opt-name">Positive</div>
+                  <div class="opt-desc">Genuine item & good delivery</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Problem / Positive categories -->
+          <div class="field">
+            <label class="label" id="categoriesLabel">What problems occurred? (select all that apply)</label>
+            
+            <!-- Negative / Issue Categories -->
+            <div class="check-chips" id="negativeCategoriesGroup">
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="refund_denied">
+                <span>Return / Refund Denied</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="undelivered">
+                <span>Undelivered / Marked Delivered Fraud</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="autocancelled">
+                <span>Auto-cancelled by Seller / Flipkart</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="scam_fake">
+                <span>Fake or Counterfeit</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="wrong_item">
+                <span>Wrong Item Delivered</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="quality_defect">
+                <span>Defective / Damaged</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="delivery_issue">
+                <span>Open Box / Delivery Fraud</span>
+              </label>
+            </div>
+
+            <!-- Positive Experience Categories -->
+            <div class="check-chips hidden" id="positiveCategoriesGroup">
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="genuine_verified">
+                <span>100% Genuine & Sealed Packaging</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="fast_delivery">
+                <span>Fast & Safe Delivery</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="openbox_smooth">
+                <span>Smooth Open-Box Delivery Experience</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="great_quality">
+                <span>Great Quality & Performance</span>
+              </label>
+              <label class="check-box">
+                <input type="checkbox" name="categories" value="accurate_listing">
+                <span>Matches Specifications Accurately</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Title -->
+          <div class="field">
+            <label class="label" for="formTitle" id="formTitleLabel">Summary</label>
+            <input type="text" id="formTitle" placeholder="Brief summary of the issue" required maxlength="120">
+          </div>
+
+          <!-- Story -->
+          <div class="field">
+            <label class="label" for="formDesc" id="formDescLabel">Details</label>
+            <textarea id="formDesc" rows="4" placeholder="Describe what happened, support response, and timeline..." required></textarea>
+          </div>
+
+          <!-- Order Date, Seller & Resolution -->
+          <div class="field-split">
+            <div class="field">
+              <label class="label" for="formOrderDate">Order Date <span style="font-weight: normal; color: var(--text-muted);">(optional)</span></label>
+              <input type="date" id="formOrderDate">
+            </div>
+
+            <div class="field">
+              <label class="label" for="formSeller">Seller Name</label>
+              <input type="text" id="formSeller" placeholder="e.g. RetailNet">
+            </div>
+          </div>
+
+          <div class="field" id="resolutionFieldGroup">
+            <label class="label" for="formResolution">Flipkart Support Status</label>
+            <select id="formResolution">
+              <option value="denied">Refund Denied</option>
+              <option value="pending">Dispute Pending</option>
+              <option value="resolved">Resolved / Replaced</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label class="check-simple">
+              <input type="checkbox" id="formVerified" checked>
+              <span>Verified purchase from Flipkart</span>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="check-simple">
+              <input type="checkbox" id="formHonesty" required checked>
+              <span style="font-size: 10px; color: var(--text-muted);">I confirm this report reflects my firsthand purchase experience and complies with Community Guidelines.</span>
+            </label>
+          </div>
+
+          <div class="field">
+            <label class="label" for="formAlias">Alias</label>
+            <input type="text" id="formAlias" placeholder="Anonymous Buyer">
+          </div>
+
+          <div class="drawer-actions">
+            <button type="button" id="cancelFormBtn" class="btn-text">Cancel</button>
+            <button type="submit" id="submitReportBtn" class="btn-submit">Submit report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../shared/api.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

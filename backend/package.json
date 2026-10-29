@@ -1,0 +1,14 @@
+{
+  "name": "flipkart-trust-radar-backend",
+  "version": "1.0.0",
+  "description": "Anonymous community report backend for Flipkart Trust Radar Chrome Extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

@@ -18,7 +18,7 @@
         <span class="brand-name">Community Watch</span>
       </div>
       <div class="nav-controls">
-        <button id="searchToggleBtn" class="nav-btn" aria-label="Search product" title="Search product">
+        <button id="searchToggleBtn" class="nav-btn" popovertarget="searchBar" aria-label="Search product" title="Search product">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -35,8 +35,8 @@
       </div>
     </header>
 
-    <!-- Search drawer -->
-    <div id="searchBar" class="search-drawer hidden">
+    <!-- Search drawer using native Popover API -->
+    <div id="searchBar" popover="auto" class="search-drawer">
       <div class="search-row">
         <input type="text" id="searchInput" placeholder="Search by PID or paste Flipkart link..." spellcheck="false" />
         <button id="searchSubmitBtn">Lookup</button>
@@ -155,15 +155,15 @@
       </div>
     </footer>
 
-    <!-- Slide-up Report Form Drawer -->
-    <div id="reportModal" class="drawer-backdrop hidden">
+    <!-- Slide-up Report Form Modal using native <dialog> -->
+    <dialog id="reportModal" class="native-modal-dialog" closedby="any" aria-labelledby="modalTitle">
       <div class="drawer">
         <div class="drawer-header">
           <div>
-            <h3>Report an issue</h3>
+            <h3 id="modalTitle">Report an issue</h3>
             <p>Your submission is published anonymously</p>
           </div>
-          <button id="closeModalBtn" class="drawer-close" aria-label="Close">&times;</button>
+          <button id="closeModalBtn" type="button" class="drawer-close" aria-label="Close">&times;</button>
         </div>
 
         <form id="newReportForm" class="drawer-form">
@@ -317,7 +317,7 @@
           </div>
         </form>
       </div>
-    </div>
+    </dialog>
   </div>
 
   <script src="../shared/api.js"></script>

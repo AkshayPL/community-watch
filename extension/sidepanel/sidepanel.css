@@ -115,15 +115,23 @@ body {
   color: var(--text-main);
 }
 
-/* Search Drawer */
+/* Search Drawer (Native Popover API) */
 .search-drawer {
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--border-light);
   padding: 8px 14px;
 }
 
-.search-drawer.hidden {
-  display: none;
+.search-drawer[popover] {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  margin: 0;
+  top: 44px;
+  left: 14px;
+  right: 14px;
+  width: calc(100% - 28px);
 }
 
 .search-row {
@@ -818,19 +826,26 @@ body {
   background: #1f2937;
 }
 
-/* Modal / Drawer */
-.drawer-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+/* Native Modal Dialog (Modern Web Guidance) */
+.native-modal-dialog {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: auto auto 0 auto;
+  overflow: visible;
 }
 
-.drawer-backdrop.hidden {
-  display: none;
+.native-modal-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+.native-modal-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .drawer {
@@ -838,7 +853,7 @@ body {
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
   border-top: 1px solid var(--border-light);
-  max-height: 94%;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }

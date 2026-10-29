@@ -83,9 +83,8 @@ function setupEventListeners() {
     });
   });
 
-  // Modal open/close
+  // Modal open/close using native <dialog>
   openReportFormBtn.addEventListener('click', () => {
-    reportModal.classList.remove('hidden');
     const orderDateEl = document.getElementById('formOrderDate');
     if (orderDateEl) {
       orderDateEl.max = new Date().toISOString().split('T')[0];
@@ -97,6 +96,11 @@ function setupEventListeners() {
       formAliasInput.value = "Anonymous Buyer #" + Math.floor(100 + Math.random() * 900);
     }
     handleVerdictChange();
+    if (typeof reportModal.showModal === 'function') {
+      reportModal.showModal();
+    } else {
+      reportModal.classList.remove('hidden');
+    }
   });
 
   // Dynamic category and status switcher based on verdict
@@ -104,8 +108,29 @@ function setupEventListeners() {
     radio.addEventListener('change', handleVerdictChange);
   });
 
-  closeModalBtn.addEventListener('click', () => reportModal.classList.add('hidden'));
-  cancelFormBtn.addEventListener('click', () => reportModal.classList.add('hidden'));
+  closeModalBtn.addEventListener('click', () => {
+    if (typeof reportModal.close === 'function') reportModal.close();
+    else reportModal.classList.add('hidden');
+  });
+
+  cancelFormBtn.addEventListener('click', () => {
+    if (typeof reportModal.close === 'function') reportModal.close();
+    else reportModal.classList.add('hidden');
+  });
+
+  // Light dismiss for dialog backdrop clicks (Modern Web Guidance)
+  reportModal.addEventListener('click', (e) => {
+    const rect = reportModal.getBoundingClientRect();
+    const isInDialog = (
+      rect.top <= e.clientY &&
+      e.clientY <= rect.top + rect.height &&
+      rect.left <= e.clientX &&
+      e.clientX <= rect.left + rect.width
+    );
+    if (!isInDialog && typeof reportModal.close === 'function') {
+      reportModal.close();
+    }
+  });
 
   newReportForm.addEventListener('submit', handleReportSubmit);
 
@@ -572,7 +597,8 @@ async function handleReportSubmit(e) {
   try {
     await window.TrustRadarAPI.submitReport(currentPid, reportPayload);
     await loadProductData(currentPid, true);
-    reportModal.classList.add('hidden');
+    if (typeof reportModal.close === 'function') reportModal.close();
+    else reportModal.classList.add('hidden');
     newReportForm.reset();
   } catch (err) {
     alert("Could not submit: " + err.message);
